@@ -9,26 +9,38 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from IPython.display import HTML
 import torchvision.transforms as transforms
+import csv
+from datetime import datetime
 
-from models import Simple
-from utils import local_train, global_test
-from aggregation import weight_avg
+from models import mnist_FFNN, mnist_CNN, cifar_FFNN, cifar_CNN
+from utils import local_train, global_test, graph_metric, record_global, record_local
+from attack_utils import make_gaussian
+from aggregation import weight_avg, proposed
 
 import pdb
 
 # experiment set-up
+date = datetime.now()
+
 DATASET = 'mnist'
 #DATASET = 'cifar'
-MODEL = 'simple'
+#MODEL = 'ffnn'
+MODEL = 'mnist_cnn'
+#MODEL = 'cifar_ffnn'
+#MODEL = 'cifar_cnn'
+gaussian_attack = True
+sd = 20
+n_honest = 13
 
 # hyperparameters
-n = 3
+n = 25
 batch_size = 128
 lr = .01
+
 # global rounds
 rounds = 10
 # local epochs
-epochs = 3
+epochs = 1
 
 # importing the data
 if DATASET == 'mnist':
@@ -54,48 +66,66 @@ train_loader = [torch.utils.data.DataLoader(x, batch_size=batch_size, shuffle=Tr
 # creating the test loader for the global model
 test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, shuffle=True)
 
-if MODEL == 'simple':
+if MODEL == 'mnist_ffnn':
     # initialize server model
-    global_model = Simple()
+    global_model = mnist_FFNN()
     # initialize list of client models
-    clients = [Simple() for _ in range(n)]
+    clients = [mnist_FFNN() for _ in range(n)]
+
+if MODEL == 'mnist_cnn':
+    # initialize server model
+    global_model = mnist_CNN()
+    # initialize list of client models
+    clients = [mnist_CNN() for _ in range(n)]
+
+if MODEL == 'cifar_ffnn':
+    # initialize server model
+    global_model = cifar_FFNN()
+    # initialize list of client models
+    clients = [cifar_FFNN() for _ in range(n)]
+
+if MODEL == 'cifar_cnn':
+    # initialize server model
+    global_model = cifar_CNN()
+    # initialize list of client models
+    clients = [cifar_CNN() for _ in range(n)]
 
 # Use the same optimizer for all models
-optimizers = [optim.SGD(model.parameters(), lr=lr) for model in clients]
+optimizers = [optim.Adam(model.parameters(), lr=lr) for model in clients]
 
-loss_tr = []
-loss_tst = []
-acc_tr = []
-acc_tst = []
-
+global_acc = []
 for r in range(rounds):
     print('Global round', r, '/', rounds)
+
+    local_acc = []
+    # local training
     for i in range(n):
-        #client = clients[i]
-        #print(np.array((list(client.parameters())[1]).data)[0])
-        #loader = train_loader[i]
         train_acc, train_loss = local_train(epochs, clients[i], optimizers[i], train_loader[i])
-        #test_acc, test_loss = test(model, test_loader)
-        print('model', i, ': train accuracy', train_acc)#, ', test accuracy:', test_acc)
-    #w1_tr.append(np.array((list(model.parameters())[0]).data))
-    #train_acc, train_loss = train(epoch, model, optimizer, train_loader)
-    #test_acc, test_loss = test(model, test_loader)
-    #print('train accuracy', train_acc, 'test accuracy:', test_acc)
+        print('client', i, ': train accuracy', train_acc)
+        local_acc.append(train_acc)
+
+    # possibly formulate an attack
+    if gaussian_attack:
+        clients = clients[:n_honest] + make_gaussian(clients[n_honest:])
     # aggregate
-    global_model = weight_avg(global_model, clients)
+    # todo: make the date a string in the beginning
+    global_model = proposed(global_model, clients, test_loader, r, str(date), DATASET)
+    #global_model = weight_avg(global_model, clients)
+
     # test global model
     test_acc, test_loss = global_test(global_model, test_loader)
     print('Global test accuracy', test_acc)
+
+    # write accuracy to file
+    fglobal = 'results/' + DATASET + '/global-acc-' + str(date) + '.csv'
+    flocal = 'results/' + DATASET + '/local-acc-' + str(date) + '.csv'
+    record_global(fglobal, r, test_acc)
+    record_local(flocal, r, local_acc)
+    global_acc.append(test_acc)
+
     # sync clients with global model
-    for client in clients:
-        client.load_state_dict(global_model.state_dict())
+    #for client in clients:
+    #    client.load_state_dict(global_model.state_dict())
 
-"""
-model.train()
-    for e in range(epoch):
-        for batch_idx, (data, target) in enumerate(train_loader):
-"""
-
-# server aggregation function takes global model and client models and averages and then updates the clients with the global at the end
-
-# have a normal test function for global model
+# graph accuracy of global model across rounds
+graph_metric(global_acc, 'Accuracy')
