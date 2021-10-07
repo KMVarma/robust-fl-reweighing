@@ -23,7 +23,7 @@ def local_train(e, model, optimizer, train_loader):
         for batch_idx, (x, y) in enumerate(train_loader):
             optimizer.zero_grad()
             output = model(x)
-            loss = nn.CrossEntropyLoss()(output, y)
+            loss = F.nll_loss(output, y)
             train_loss += loss.item()
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(y.data.view_as(pred)).sum()
@@ -40,7 +40,7 @@ def global_test(model, test_loader):
     with torch.no_grad():
         for x, y in test_loader:
             output = model(x)
-            test_loss += nn.CrossEntropyLoss()(output, y).item()
+            test_loss += F.nll_loss(output, y).item()
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(y.data.view_as(pred)).sum()
     test_loss /= len(test_loader.dataset)

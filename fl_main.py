@@ -11,34 +11,45 @@ from IPython.display import HTML
 import torchvision.transforms as transforms
 import csv
 from datetime import datetime
-
 from models import mnist_FFNN, mnist_CNN, cifar_FFNN, cifar_CNN
 from utils import local_train, global_test, graph_metric, record_global, record_local
 from attack_utils import make_gaussian
-from aggregation import weight_avg, proposed
-
+from aggregation import weight_avg, proposed_power, proposed_0_1
 import pdb
 
 # experiment set-up
-date = datetime.now()
+date = str(datetime.now())
 
+# datasets
 DATASET = 'mnist'
 #DATASET = 'cifar'
+
+# models
 #MODEL = 'ffnn'
 MODEL = 'mnist_cnn'
 #MODEL = 'cifar_ffnn'
 #MODEL = 'cifar_cnn'
+
+# aggregation algorithms
+#aggregation = 'average'
+#aggregation = 'proposed_power'
+aggregation = 'proposed_0_1'
+
+
+# attacks
+n_honest = 13
 gaussian_attack = True
 sd = 20
-n_honest = 13
 
 # hyperparameters
 n = 25
 batch_size = 128
 lr = .01
 
+# sync local models to global model after each global round
+syncing = False
 # global rounds
-rounds = 10
+rounds = 20
 # local epochs
 epochs = 1
 
@@ -106,26 +117,31 @@ for r in range(rounds):
 
     # possibly formulate an attack
     if gaussian_attack:
+        print('Executing a Gaussian attack')
         clients = clients[:n_honest] + make_gaussian(clients[n_honest:])
     # aggregate
-    # todo: make the date a string in the beginning
-    global_model = proposed(global_model, clients, test_loader, r, str(date), DATASET)
-    #global_model = weight_avg(global_model, clients)
+    if aggregation == 'proposed_0_1':
+        global_model = proposed_0_1(global_model, clients, test_loader, r, date, DATASET)
+    if aggregation == 'proposed_power':
+        global_model = proposed_power(global_model, clients, test_loader, r, date, DATASET)
+    if aggregation == 'average':
+        global_model = weight_avg(global_model, clients)
 
     # test global model
     test_acc, test_loss = global_test(global_model, test_loader)
     print('Global test accuracy', test_acc)
 
     # write accuracy to file
-    fglobal = 'results/' + DATASET + '/global-acc-' + str(date) + '.csv'
-    flocal = 'results/' + DATASET + '/local-acc-' + str(date) + '.csv'
+    fglobal = 'results/' + DATASET + '/global-acc-' + date + '.csv'
+    flocal = 'results/' + DATASET + '/local-acc-' + date + '.csv'
     record_global(fglobal, r, test_acc)
     record_local(flocal, r, local_acc)
     global_acc.append(test_acc)
 
     # sync clients with global model
-    #for client in clients:
-    #    client.load_state_dict(global_model.state_dict())
+    if syncing:
+        for client in clients:
+            client.load_state_dict(global_model.state_dict())
 
 # graph accuracy of global model across rounds
 graph_metric(global_acc, 'Accuracy')
