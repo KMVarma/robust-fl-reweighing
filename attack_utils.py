@@ -12,6 +12,7 @@ import collections
 
 import pdb
 
+
 def make_gaussian(orig, sd=20):
     gaussian_p = []
     for client in orig:
@@ -33,3 +34,26 @@ def make_gaussian(orig, sd=20):
         # todo: is this necessary or can you just return orig
         gaussian_p.append(client)
     return gaussian_p
+
+
+def make_foe(orig_h, orig_b, epsilon=1):
+    p_foe = []
+    # just use any client for the state dict, they're all the same architecture
+    avg_h = orig_h[0].state_dict()
+    byzantine_p = collections.OrderedDict()
+
+    for k in avg_h.keys():
+        # get the average of the honest clients
+        avg_h[k] = torch.stack(
+            [orig_h[i].state_dict()[k].float() for i in range(len(orig_h))],
+            0).sum(0)
+        # set the current key value in the byzantine state dict
+        byzantine_p[k] = -epsilon * avg_h[k]
+
+    # change the state dict in all byzantine models
+    for b in orig_b:
+        b.load_state_dict(byzantine_p)
+        # todo: maybe this is redundant and you can just return orig_b
+        p_foe.append(b)
+    # todo: change "weights" to "parameters"
+    return p_foe

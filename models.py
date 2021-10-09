@@ -22,6 +22,7 @@ class mnist_FFNN(nn.Module):
         x = F.softmax(self.fc2(x), dim=1)
         return x
 
+
 class mnist_CNN(nn.Module):
     def __init__(self):
         super(mnist_CNN, self).__init__()
@@ -44,6 +45,7 @@ class mnist_CNN(nn.Module):
         x = F.softmax(self.fc(x), dim=1)
         return x
 
+
 class cifar_FFNN(nn.Module):
     def __init__(self):
         super(cifar_FFNN, self).__init__()
@@ -55,6 +57,7 @@ class cifar_FFNN(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.softmax(self.fc2(x), dim=1)
         return x
+
 
 class cifar_CNN(nn.Module):
     # source:

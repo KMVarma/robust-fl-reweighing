@@ -13,8 +13,8 @@ import csv
 from datetime import datetime
 from models import mnist_FFNN, mnist_CNN, cifar_FFNN, cifar_CNN
 from utils import local_train, global_test, graph_metric, record_global, record_local
-from attack_utils import make_gaussian
-from aggregation import weight_avg, proposed_power, proposed_0_1
+from attack_utils import make_gaussian, make_foe
+from aggregation import weight_avg, proposed_power, proposed_0_1, proposed_leaveout_0_1
 import pdb
 
 # experiment set-up
@@ -22,23 +22,26 @@ date = str(datetime.now())
 
 # datasets
 DATASET = 'mnist'
-#DATASET = 'cifar'
+# DATASET = 'cifar'
 
 # models
-#MODEL = 'ffnn'
+# MODEL = 'ffnn'
 MODEL = 'mnist_cnn'
-#MODEL = 'cifar_ffnn'
-#MODEL = 'cifar_cnn'
+# MODEL = 'cifar_ffnn'
+# MODEL = 'cifar_cnn'
 
 # aggregation algorithms
-#aggregation = 'average'
-#aggregation = 'proposed_power'
-aggregation = 'proposed_0_1'
+aggregation = 'average'
+# aggregation = 'proposed_power'
+# aggregation = 'proposed_0_1'
+# aggregation = 'proposed_leaveout_0_1'
 
 
 # attacks
 n_honest = 13
-gaussian_attack = True
+# attack = 'none'
+attack = 'foe'
+# attack = 'gaussian'
 sd = 20
 
 # hyperparameters
@@ -47,9 +50,10 @@ batch_size = 128
 lr = .01
 
 # sync local models to global model after each global round
+
 syncing = False
 # global rounds
-rounds = 20
+rounds = 10
 # local epochs
 epochs = 1
 
@@ -116,9 +120,13 @@ for r in range(rounds):
         local_acc.append(train_acc)
 
     # possibly formulate an attack
-    if gaussian_attack:
+    if attack == 'gaussian':
         print('Executing a Gaussian attack')
         clients = clients[:n_honest] + make_gaussian(clients[n_honest:])
+    if attack == 'foe':
+        print('Executing a Fall of Empires attack')
+        clients = clients[:n_honest] + make_foe(clients[:n_honest], clients[n_honest:])
+
     # aggregate
     if aggregation == 'proposed_0_1':
         global_model = proposed_0_1(global_model, clients, test_loader, r, date, DATASET)
@@ -126,6 +134,8 @@ for r in range(rounds):
         global_model = proposed_power(global_model, clients, test_loader, r, date, DATASET)
     if aggregation == 'average':
         global_model = weight_avg(global_model, clients)
+    if aggregation == 'proposed_leaveout_0_1':
+        global_model = proposed_leaveout_0_1(global_model, clients, test_loader, r, date, DATASET)
 
     # test global model
     test_acc, test_loss = global_test(global_model, test_loader)

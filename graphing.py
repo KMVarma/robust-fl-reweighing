@@ -12,8 +12,9 @@ import csv
 import os
 import pdb
 
+
 def graph_weights(filename, n_clients=25, n_rounds=20):
-    #todo: maybe write better so you can read easier
+    # todo: maybe write better so you can read easier
     all_clients = []
     for i in range(n_clients):
         all_clients.append(list())
@@ -41,6 +42,7 @@ def graph_weights(filename, n_clients=25, n_rounds=20):
 
     fig.tight_layout()
     plt.show()
+
 
 def graph_accuracy(n_rounds=20):
     all_acc = []
@@ -80,5 +82,6 @@ def graph_accuracy(n_rounds=20):
     fig.tight_layout()
     plt.show()
 
+
 graph_weights('results/mnist/01/weights.csv')
-#graph_accuracy()
+# graph_accuracy()
