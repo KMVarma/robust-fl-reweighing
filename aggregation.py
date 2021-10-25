@@ -27,7 +27,7 @@ def proposed_power(global_model, clients, test_loader, r, date, dataset, power=1
     global_dict = global_model.state_dict()
     accuracies = []
     for c in clients:
-        acc, _ = global_test(c, test_loader)
+        acc, _, _, _, _, _, _, _ = global_test(c, test_loader)
         accuracies.append(acc)
     weight = []
     for a in accuracies:
@@ -47,7 +47,7 @@ def proposed_0_1(global_model, clients, test_loader, r, date, dataset):
     global_dict = global_model.state_dict()
     accuracies = []
     for c in clients:
-        acc, _ = global_test(c, test_loader)
+        acc, _, _, _, _, _, _, _ = global_test(c, test_loader)
         accuracies.append(acc)
 
     # normalize accuracies to [0,1] range
@@ -68,43 +68,64 @@ def proposed_0_1(global_model, clients, test_loader, r, date, dataset):
     return global_model
 
 
-def proposed_leaveout_0_1(global_model, clients, test_loader, r, date, dataset):
+def proposed_leaveout_0_1(global_model, clients_orig, test_loader, r, date, dataset, class_test_loaders):
     global_dict = global_model.state_dict()
     weights = []
-    """for k in global_dict.keys():
-        global_dict[k] = torch.stack(
-            [clients[i].state_dict()[k].float() for i in range(len(clients))],
-            0).sum(0)
-    global_model.load_state_dict(global_dict)
-    acc_all, _ = global_test(global_model, test_loader)
-    print('INCLUDING ALL:', acc_all)"""
-    for c in range(len(clients)):
-        exclusive_clients = clients.copy()
-        exclusive_clients.pop(c)
-        for k in global_dict.keys():
-            global_dict[k] = torch.stack([exclusive_clients[i].state_dict()[k].float() for i in range(len(exclusive_clients))],
-                                         0).sum(0)
-        global_model.load_state_dict(global_dict)
-        acc, _ = global_test(global_model, test_loader)
-        print(c, ':', acc)
-        weights.append(1/acc)
 
+
+    for c in range(len(clients_orig)):
+        clients = clients_orig.copy()
+        clients = clients + (len(clients_orig) * [clients[c]])
+        all_by_class = []
+        for k in global_dict.keys():
+            global_dict[k] = torch.stack(
+                [clients[i].state_dict()[k].float() for i in range(len(clients))],
+                0).sum(0)
+        global_model.load_state_dict(global_dict)
+        acc_all, _, _, _, _, _, _, _ = global_test(global_model, test_loader)
+
+        exclusive_clients = clients_orig.copy()
+        exclusive_clients.pop(c)
+        exclusive_clients = exclusive_clients
+        for k in global_dict.keys():
+            global_dict[k] = torch.stack(
+                [exclusive_clients[i].state_dict()[k].float() for i in range(len(exclusive_clients))],
+                0).sum(0)
+        global_model.load_state_dict(global_dict)
+
+        acc, _, _, _, _, _, _, _ = global_test(global_model, test_loader)
+        diff = acc_all - acc
+        weights.append(diff)
+    print('***')
+    print('***')
+    print('***')
+    print(weights)
+    print('***')
+    print('***')
+    print('***')
     w_min = min(weights)
     w_max = max(weights)
-    normalized_w = [((w - w_min) / (w_max - w_min)) for w in weights]
-    print(normalized_w)
-    # compute weights as the closest integer to the accuracy (0 or 1)
-    w_01 = [round(x) for x in normalized_w]
+
+    # todo: change this back
+    if -acc_all == w_max:
+        w_01 = [1.] * len(clients_orig)
+    else:
+        normalized_w = [((w - w_min) / (w_max - w_min)) for w in weights]
+        print(normalized_w)
+        # compute weights as the closest integer to the accuracy (0 or 1)
+        w_01 = [round(x) for x in normalized_w]
+    print('***')
+    print('***')
+    print('***')
     print(w_01)
 
-    record_local('results/' + dataset + '/accuracies-' + date + '.csv', r, weights)
-    record_local('results/' + dataset + '/weights-' + date + '.csv', r, w_01)
+    #record_local('results/' + dataset + '/accuracies-' + date + '.csv', r, weights)
+    #record_local('results/' + dataset + '/weights-' + date + '.csv', r, w_01)
     for k in global_dict.keys():
-        global_dict[k] = torch.stack([w_01[i] * clients[i].state_dict()[k].float() for i in range(len(clients))],
+        global_dict[k] = torch.stack([w_01[i] * clients_orig[i].state_dict()[k].float() for i in range(len(clients_orig))],
                                      0).sum(0)
     global_model.load_state_dict(global_dict)
     return global_model
-
 
 def sigmoid(z):
     return 1 / (1+math.exp(-z))

@@ -57,3 +57,6 @@ def make_foe(orig_h, orig_b, epsilon=1):
         p_foe.append(b)
     # todo: change "weights" to "parameters"
     return p_foe
+"""
+def flip_label(clean_lst, src_lbl, target_lbl):
+    return 0"""

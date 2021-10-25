@@ -13,7 +13,7 @@ import os
 import pdb
 
 
-def graph_weights(filename, n_clients=25, n_rounds=20):
+def graph_weights(filename, n_clients=25, n_rounds=50):
     # todo: maybe write better so you can read easier
     all_clients = []
     for i in range(n_clients):
@@ -38,13 +38,13 @@ def graph_weights(filename, n_clients=25, n_rounds=20):
             color = 'b'
         ax1.plot(rounds, c_list, c=color)
     ax1.tick_params(axis='y')
-    ax1.legend(['honest'] * 13 + ['adversarial'] * 12, loc='upper right')
+    #ax1.legend(['honest'] * 13 + ['adversarial'] * 12, loc='upper right')
 
     fig.tight_layout()
     plt.show()
 
 
-def graph_accuracy(n_rounds=20):
+def graph_accuracy(n_rounds=40):
     all_acc = []
     """all_files = ['results/mnist/1stpower/globalacc.csv',
                  'results/mnist/10thpower/globalacc.csv',
@@ -53,9 +53,7 @@ def graph_accuracy(n_rounds=20):
                  'results/mnist/50thpower/globalacc.csv',
                  'results/mnist/75thpower/globalacc.csv',
                  'results/mnist/100thpower/globalacc.csv']"""
-    all_files = ['results/mnist/cleanbase.csv',
-                 'results/mnist/gaussianbase.csv',
-                 'results/mnist/cleanproposed.csv',
+    all_files = ['results/mnist/gaussianbase.csv',
                  'results/mnist/gaussianproposed.csv']
     for filename in all_files:
         acc = []
@@ -74,14 +72,12 @@ def graph_accuracy(n_rounds=20):
     for a1 in all_acc:
         ax1.plot(rounds, a1[:n_rounds])
     ax1.tick_params(axis='y')
-    ax1.legend(['FedAvg (baseline) - no attack',
-                'FedAvg (baseline) - Gaussian attack',
-                'Proposed algorithm - no attack',
+    ax1.legend(['FedAvg (baseline) - Gaussian attack',
                 'Proposed algorithm - Gaussian attack'], loc='best')
 
     fig.tight_layout()
     plt.show()
 
 
-graph_weights('results/mnist/01/weights.csv')
-# graph_accuracy()
+graph_weights('results/mnist/100thpower/weights.csv')
+#graph_accuracy()

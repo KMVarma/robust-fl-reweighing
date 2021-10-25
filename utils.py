@@ -16,12 +16,16 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 import pdb
 
 
-def local_train(e, model, optimizer, train_loader):
+def local_train(epoch, model, optimizer, train_loader, flip_label=False):
     model.train()
-    for i in range(e):
+    for i in range(epoch):
         correct = 0
         train_loss = 0
         for batch_idx, (x, y) in enumerate(train_loader):
+            if flip_label:
+                y_lst = y.tolist()
+                flipped_lst = [flip_label[1] if lbl is flip_label[0] else lbl for lbl in y_lst]
+                y = torch.tensor(flipped_lst)
             optimizer.zero_grad()
             output = model(x)
             loss = F.nll_loss(output, y)
@@ -34,19 +38,90 @@ def local_train(e, model, optimizer, train_loader):
     return acc, train_loss
 
 
-def global_test(model, test_loader):
+def global_test(model, test_loader, flip_label=False, full_metrics=True):
+    # todo: try to write helper functions to eliminate the redundancy
+    # todo: change all base class stuff to target class
     model.eval()
-    test_loss = 0
-    correct = 0
+
+    # for full test set
+    test_loss_full = 0
+    correct_full = 0
+    acc = 0
+
+    # for label-flipping source class
+    test_loss_s = 0
+    correct_s = 0
+    n_s = 0
+    acc_s = 0
+
+    # for label-flipping base class
+    test_loss_b = 0
+    correct_b = 0
+    n_b = 0
+    acc_b = 0
+
+    # for label-flipping other classes
+    test_loss_o = 0
+    correct_o = 0
+    n_o = 0
+    acc_o = 0
+
     with torch.no_grad():
+        all_y = []
+        all_pred = []
         for x, y in test_loader:
-            output = model(x)
-            test_loss += F.nll_loss(output, y).item()
-            pred = output.data.max(1, keepdim=True)[1]
-            correct += pred.eq(y.data.view_as(pred)).sum()
-    test_loss /= len(test_loader.dataset)
-    acc = float(100. * correct / len(test_loader.dataset))
-    return acc, test_loss
+            if flip_label:
+
+                # label-flipping source class
+                output = model(x)
+                test_loss_s += F.nll_loss(output, y).item()
+                pred_s = output.data.max(1, keepdim=True)[1]
+                correct_s += pred_s.eq(y.data.view_as(pred_s)).sum()
+
+                # label-flipping base class
+                output = model(x)
+                test_loss_b += F.nll_loss(output, y).item()
+                pred_b = output.data.max(1, keepdim=True)[1]
+                correct_b += pred_b.eq(y.data.view_as(pred_b)).sum()
+
+                # all other classes
+                output = model(x)
+                test_loss_b += F.nll_loss(output, y).item()
+                pred_o = output.data.max(1, keepdim=True)[1]
+                correct_o += pred_o.eq(y.data.view_as(pred_o)).sum()
+
+            if full_metrics:
+                # full test set
+                all_y.append(y)
+                output = model(x)
+                test_loss_full += F.nll_loss(output, y).item()
+                pred = output.data.max(1, keepdim=True)[1]
+                all_pred.append(pred)
+                correct_full += pred.eq(y.data.view_as(pred)).sum()
+
+    if flip_label:
+        # label-flipping source class
+        test_loss_s /= len(test_loader.dataset)
+        acc_s = float(100. * correct_s / len(test_loader.dataset))
+
+        # label-flipping base class
+        test_loss_b /= len(test_loader.dataset)
+        acc_b = float(100. * correct_b / len(test_loader.dataset))
+
+        # label-flipping other classes
+        test_loss_o /= len(test_loader.dataset)
+        acc_o = float(100. * correct_o / len(test_loader.dataset))
+
+    if full_metrics:
+        # full test set
+        test_loss_full /= len(test_loader.dataset)
+        acc = float(100. * correct_full / len(test_loader.dataset))
+    #print('ALL Y')
+    #print(all_y)
+    #print('ALL PRED')
+    #print(all_pred)
+    #print('acc', acc)
+    return acc, test_loss_full, acc_s, test_loss_s, acc_b, test_loss_b, acc_o, test_loss_o
 
 
 def graph_metric(metric_lst, metric_name):

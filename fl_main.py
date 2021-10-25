@@ -20,6 +20,18 @@ import pdb
 # experiment set-up
 date = str(datetime.now())
 
+# hyperparameters
+n = 25
+batch_size = 128
+lr = .01
+
+# sync local models to global model after each global round
+syncing = False
+# global rounds
+rounds = 50
+# local epochs
+epochs = 3
+
 # datasets
 DATASET = 'mnist'
 # DATASET = 'cifar'
@@ -34,28 +46,23 @@ MODEL = 'mnist_cnn'
 aggregation = 'average'
 # aggregation = 'proposed_power'
 # aggregation = 'proposed_0_1'
-# aggregation = 'proposed_leaveout_0_1'
-
+#aggregation = 'proposed_leaveout_0_1'
 
 # attacks
 n_honest = 13
-# attack = 'none'
+#attack = 'none'
 attack = 'foe'
-# attack = 'gaussian'
+#attack = 'gaussian'
 sd = 20
+# attack = 'label-flipping'
+flip_label = [False] * n
+flip_tuple = (1, 4)
 
-# hyperparameters
-n = 25
-batch_size = 128
-lr = .01
-
-# sync local models to global model after each global round
-
-syncing = False
-# global rounds
-rounds = 10
-# local epochs
-epochs = 1
+if attack == 'label-flipping':
+    print('Executing a Label-flipping attack')
+    for i in range(len(flip_label)):
+        if i >= n_honest:
+            flip_label[i] = flip_tuple
 
 # importing the data
 if DATASET == 'mnist':
@@ -80,6 +87,86 @@ train_loader = [torch.utils.data.DataLoader(x, batch_size=batch_size, shuffle=Tr
 
 # creating the test loader for the global model
 test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, shuffle=True)
+
+testset0 = torchvision.datasets.MNIST(root='./mnist_data', train=False, download=True,
+                                   transform=transforms.ToTensor())
+testset1 = torchvision.datasets.MNIST(root='./mnist_data', train=False, download=True,
+                                   transform=transforms.ToTensor())
+testset2 = torchvision.datasets.MNIST(root='./mnist_data', train=False, download=True,
+                                   transform=transforms.ToTensor())
+testset3 = torchvision.datasets.MNIST(root='./mnist_data', train=False, download=True,
+                                   transform=transforms.ToTensor())
+testset4 = torchvision.datasets.MNIST(root='./mnist_data', train=False, download=True,
+                                   transform=transforms.ToTensor())
+testset5 = torchvision.datasets.MNIST(root='./mnist_data', train=False, download=True,
+                                   transform=transforms.ToTensor())
+testset6 = torchvision.datasets.MNIST(root='./mnist_data', train=False, download=True,
+                                   transform=transforms.ToTensor())
+testset7 = torchvision.datasets.MNIST(root='./mnist_data', train=False, download=True,
+                                   transform=transforms.ToTensor())
+testset8 = torchvision.datasets.MNIST(root='./mnist_data', train=False, download=True,
+                                   transform=transforms.ToTensor())
+testset9 = torchvision.datasets.MNIST(root='./mnist_data', train=False, download=True,
+                                   transform=transforms.ToTensor())
+
+# there will be 1,000 per class with MNIST test
+idx0 = testset0.test_labels==0
+idx1 = testset1.test_labels==1
+idx2 = testset2.test_labels==2
+idx3 = testset3.test_labels==3
+idx4 = testset4.test_labels==4
+idx5 = testset5.test_labels==5
+idx6 = testset6.test_labels==6
+idx7 = testset7.test_labels==7
+idx8 = testset8.test_labels==8
+idx9 = testset9.test_labels==9
+#pdb.set_trace()
+
+n_perclass = 1000
+
+testset0.targets = testset0.targets[idx0]#[:n_perclass]
+testset1.targets = testset1.targets[idx1]#[:n_perclass]
+testset2.targets = testset2.targets[idx2]#[:n_perclass]
+testset3.targets = testset3.targets[idx3]#[:n_perclass]
+testset4.targets = testset4.targets[idx4]#[:n_perclass]
+testset5.targets = testset5.targets[idx5]#[:n_perclass]
+testset6.targets = testset6.targets[idx6]#[:n_perclass]
+testset7.targets = testset7.targets[idx7]#[:n_perclass]
+testset8.targets = testset8.targets[idx8]#[:n_perclass]
+testset9.targets = testset9.targets[idx9]#[:n_perclass]
+
+testset0.data = testset0.data[idx0]#[:n_perclass]
+testset1.data = testset1.data[idx1]#[:n_perclass]
+testset2.data = testset2.data[idx2]#[:n_perclass]
+testset3.data = testset3.data[idx3]#[:n_perclass]
+testset4.data = testset4.data[idx4]#[:n_perclass]
+testset5.data = testset5.data[idx5]#[:n_perclass]
+testset6.data = testset6.data[idx6]#[:n_perclass]
+testset7.data = testset7.data[idx7]#[:n_perclass]
+testset8.data = testset8.data[idx8]#[:n_perclass]
+testset9.data = testset9.data[idx9]#[:n_perclass]
+
+test_loader0 = torch.utils.data.DataLoader(testset0, batch_size=batch_size, shuffle=True)
+test_loader1 = torch.utils.data.DataLoader(testset1, batch_size=batch_size, shuffle=True)
+test_loader2 = torch.utils.data.DataLoader(testset2, batch_size=batch_size, shuffle=True)
+test_loader3 = torch.utils.data.DataLoader(testset3, batch_size=batch_size, shuffle=True)
+test_loader4 = torch.utils.data.DataLoader(testset4, batch_size=batch_size, shuffle=True)
+test_loader5 = torch.utils.data.DataLoader(testset5, batch_size=batch_size, shuffle=True)
+test_loader6 = torch.utils.data.DataLoader(testset6, batch_size=batch_size, shuffle=True)
+test_loader7 = torch.utils.data.DataLoader(testset7, batch_size=batch_size, shuffle=True)
+test_loader8 = torch.utils.data.DataLoader(testset8, batch_size=batch_size, shuffle=True)
+test_loader9 = torch.utils.data.DataLoader(testset9, batch_size=batch_size, shuffle=True)
+
+class_test_loaders = [test_loader0,
+                      test_loader1,
+                      test_loader2,
+                      test_loader3,
+                      test_loader4,
+                      test_loader5,
+                      test_loader6,
+                      test_loader7,
+                      test_loader8,
+                      test_loader9]
 
 if MODEL == 'mnist_ffnn':
     # initialize server model
@@ -115,7 +202,7 @@ for r in range(rounds):
     local_acc = []
     # local training
     for i in range(n):
-        train_acc, train_loss = local_train(epochs, clients[i], optimizers[i], train_loader[i])
+        train_acc, train_loss = local_train(epochs, clients[i], optimizers[i], train_loader[i], flip_label[i])
         print('client', i, ': train accuracy', train_acc)
         local_acc.append(train_acc)
 
@@ -135,11 +222,15 @@ for r in range(rounds):
     if aggregation == 'average':
         global_model = weight_avg(global_model, clients)
     if aggregation == 'proposed_leaveout_0_1':
-        global_model = proposed_leaveout_0_1(global_model, clients, test_loader, r, date, DATASET)
+        global_model = proposed_leaveout_0_1(global_model, clients, test_loader, r, date, DATASET, class_test_loaders)
 
     # test global model
-    test_acc, test_loss = global_test(global_model, test_loader)
+    test_acc, test_loss, acc_s, test_loss_s, acc_b, test_loss_b, acc_o, test_loss_o =\
+        global_test(global_model, test_loader, (attack == 'label-flipping'))
     print('Global test accuracy', test_acc)
+    if attack == 'label-flipping':
+        print('Global source accuracy', acc_s)
+        print('Global base accuracy', acc_b)
 
     # write accuracy to file
     fglobal = 'results/' + DATASET + '/global-acc-' + date + '.csv'
